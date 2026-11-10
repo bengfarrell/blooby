@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ableton song specification",
+  "description": "Independent song state and musical decisions. Native values require explicit mappings when rebuilding through MCP or another DAW.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "format", "schema_version", "captured_at", "source", "coverage", "decisions", "state"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "ableton-song-document" },
+    "schema_version": { "const": "0.2.0" },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_name", "sha256", "archive_file"],
+      "properties": {
+        "file_name": { "type": "string", "pattern": "^[^/\\\\]+\\.als$" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "archive_file": { "type": "string", "pattern": "^[a-f0-9]{64}\\.als$" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured", "not_captured"],
+      "properties": {
+        "captured": { "type": "array", "items": { "type": "string" } },
+        "not_captured": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "intent", "implementation"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "scope": { "type": "string", "minLength": 1 },
+          "intent": { "type": "string", "minLength": 1 },
+          "implementation": { "type": "string", "minLength": 1 },
+          "alternatives": { "type": "array", "items": { "type": "string" } },
+          "verification": { "type": "string" }
+        }
+      }
+    },
+    "state": { "$ref": "ableton-native.schema.json#/properties/state" }
+  }
+}

@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ableton song document",
+  "description": "Version 0.1.0: observed Live Set state, not a restorable set or an instruction to modify Ableton.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "song", "capture", "session", "scenes", "tracks", "return_tracks", "master_track"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "const": "0.1.0" },
+    "song": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "title"],
+      "properties": {
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "title": { "type": "string", "minLength": 1 }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "finished_at", "source", "read_only", "consistency", "tools", "included", "excluded"],
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "source": { "const": "LivePilot MCP" },
+        "read_only": { "const": true },
+        "consistency": {
+          "enum": ["session-summary-unchanged", "session-summary-changed"],
+          "description": "Comparison of opening/closing get_session_info responses, not an atomic snapshot guarantee."
+        },
+        "tools": { "$ref": "#/$defs/stringList" },
+        "included": { "$ref": "#/$defs/stringList" },
+        "excluded": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_name", "live_version", "tempo", "signature_numerator", "signature_denominator", "track_count", "return_track_count", "scene_count", "is_playing", "song_length", "current_song_time", "loop", "loop_start", "loop_length", "metronome", "record_mode", "session_record", "api_features"],
+      "properties": {
+        "file_name": { "type": ["string", "null"], "description": "Set basename only; null for an unsaved set." },
+        "live_version": { "type": "string" },
+        "tempo": { "type": "number", "exclusiveMinimum": 0 },
+        "signature_numerator": { "type": "integer", "minimum": 1 },
+        "signature_denominator": { "type": "integer", "minimum": 1 },
+        "track_count": { "$ref": "#/$defs/index" },
+        "return_track_count": { "$ref": "#/$defs/index" },
+        "scene_count": { "$ref": "#/$defs/index" },
+        "is_playing": { "type": "boolean" },
+        "song_length": { "$ref": "#/$defs/beats" },
+        "current_song_time": { "$ref": "#/$defs/beats" },
+        "loop": { "type": "boolean" },
+        "loop_start": { "$ref": "#/$defs/beats" },
+        "loop_length": { "$ref": "#/$defs/beats" },
+        "metronome": { "type": "boolean" },
+        "record_mode": { "type": "boolean" },
+        "session_record": { "type": "boolean" },
+        "api_features": { "type": "object", "additionalProperties": { "type": "boolean" } }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "name", "color_index", "tempo"],
+        "properties": {
+          "index": { "$ref": "#/$defs/index" },
+          "name": { "type": "string" },
+          "color_index": { "$ref": "#/$defs/color" },
+          "tempo": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/track" },
+          {
+            "required": ["current_monitoring_state", "arrangement_clips"],
+            "properties": {
+              "index": { "$ref": "#/$defs/index" },
+              "arm": { "type": "boolean" },
+              "has_midi_input": { "type": "boolean" },
+              "has_audio_input": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    },
+    "return_tracks": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/track" },
+          {
+            "required": ["is_return_track", "is_master_track"],
+            "properties": {
+              "index": { "type": "integer", "maximum": -1, "minimum": -999 },
+              "is_return_track": { "const": true },
+              "is_master_track": { "const": false },
+              "clip_slots": { "maxItems": 0 },
+              "arm": { "type": "null" },
+              "has_midi_input": { "type": "null" },
+              "has_audio_input": { "type": "null" }
+            }
+          }
+        ]
+      }
+    },
+    "master_track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "name", "volume", "panning", "devices"],
+      "properties": {
+        "index": { "const": -1000 },
+        "name": { "type": "string" },
+        "volume": { "$ref": "#/$defs/level" },
+        "panning": { "$ref": "#/$defs/pan" },
+        "devices": { "$ref": "#/$defs/devices" }
+      }
+    }
+  },
+  "$defs": {
+    "index": { "type": "integer", "minimum": 0 },
+    "beats": { "type": "number", "minimum": 0, "description": "Quarter-note beats, not seconds or bars." },
+    "color": { "type": ["integer", "null"], "minimum": 0, "maximum": 69 },
+    "level": { "type": "number", "minimum": 0, "maximum": 1, "description": "Raw Live mixer value; not dB." },
+    "pan": { "type": "number", "minimum": -1, "maximum": 1 },
+    "stringList": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "name", "color_index", "mute", "solo", "is_foldable", "is_grouped", "arm", "has_midi_input", "has_audio_input", "mixer", "sends", "routing", "devices", "clip_slots"],
+      "properties": {
+        "index": { "type": "integer" },
+        "name": { "type": "string" },
+        "color_index": { "$ref": "#/$defs/color" },
+        "mute": { "type": "boolean" },
+        "solo": { "type": "boolean" },
+        "is_foldable": { "type": "boolean" },
+        "is_grouped": { "type": "boolean" },
+        "arm": { "type": ["boolean", "null"] },
+        "has_midi_input": { "type": ["boolean", "null"] },
+        "has_audio_input": { "type": ["boolean", "null"] },
+        "is_return_track": { "type": "boolean" },
+        "is_master_track": { "type": "boolean" },
+        "current_monitoring_state": { "type": "integer", "enum": [0, 1, 2] },
+        "mixer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["volume", "panning"],
+          "properties": {
+            "volume": { "$ref": "#/$defs/level" },
+            "panning": { "$ref": "#/$defs/pan" }
+          }
+        },
+        "sends": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["index", "name", "value", "min", "max"],
+            "properties": {
+              "index": { "$ref": "#/$defs/index" },
+              "name": { "type": "string" },
+              "value": { "$ref": "#/$defs/level" },
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          }
+        },
+        "routing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_routing_type", "input_routing_channel", "output_routing_type", "output_routing_channel"],
+          "properties": {
+            "input_routing_type": { "type": "string" },
+            "input_routing_channel": { "type": "string" },
+            "output_routing_type": { "type": "string" },
+            "output_routing_channel": { "type": "string" }
+          }
+        },
+        "devices": { "$ref": "#/$defs/devices" },
+        "clip_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["index", "has_clip"],
+            "properties": {
+              "index": { "$ref": "#/$defs/index" },
+              "has_clip": { "type": "boolean" },
+              "clip": { "$ref": "#/$defs/clip" }
+            },
+            "if": { "properties": { "has_clip": { "const": true } } },
+            "then": { "required": ["clip"] },
+            "else": { "not": { "required": ["clip"] } }
+          }
+        },
+        "arrangement_clips": { "type": "array", "items": { "$ref": "#/$defs/clip" } }
+      }
+    },
+    "devices": { "type": "array", "items": { "$ref": "#/$defs/device" } },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "name", "class_name", "is_active", "parameters"],
+      "properties": {
+        "index": { "$ref": "#/$defs/index" },
+        "name": { "type": "string" },
+        "class_name": { "type": "string" },
+        "is_active": { "type": "boolean" },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["index", "name", "value", "min", "max", "is_quantized"],
+            "properties": {
+              "index": { "$ref": "#/$defs/index" },
+              "name": { "type": "string" },
+              "value": { "type": "number", "description": "Raw API value in the device's own units; do not assume 0-1." },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "is_quantized": { "type": "boolean" },
+              "value_string": { "type": "string", "description": "Optional display value when supplied by MCP." }
+            }
+          }
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "name", "color_index", "length", "is_audio_clip"],
+      "properties": {
+        "index": { "$ref": "#/$defs/index" },
+        "name": { "type": "string" },
+        "color_index": { "$ref": "#/$defs/color" },
+        "length": { "$ref": "#/$defs/beats" },
+        "is_audio_clip": { "type": "boolean" },
+        "is_midi_clip": { "type": "boolean" },
+        "is_playing": { "type": "boolean" },
+        "is_recording": { "type": "boolean" },
+        "start_time": { "$ref": "#/$defs/beats", "description": "Arrangement timeline position." },
+        "end_time": { "$ref": "#/$defs/beats", "description": "Arrangement timeline position." },
+        "looping": { "type": "boolean" },
+        "loop_start": { "$ref": "#/$defs/beats" },
+        "loop_end": { "$ref": "#/$defs/beats" },
+        "start_marker": { "$ref": "#/$defs/beats" },
+        "end_marker": { "$ref": "#/$defs/beats" },
+        "launch_mode": { "type": "integer", "minimum": 0 },
+        "launch_quantization": { "type": "integer", "minimum": 0 },
+        "notes_capture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from_pitch", "pitch_span", "from_time", "time_span"],
+          "properties": {
+            "from_pitch": { "type": "integer", "minimum": 0, "maximum": 127 },
+            "pitch_span": { "type": "integer", "minimum": 1, "maximum": 128 },
+            "from_time": { "$ref": "#/$defs/beats" },
+            "time_span": { "$ref": "#/$defs/beats" }
+          }
+        },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } }
+      },
+      "dependentRequired": { "notes": ["notes_capture"], "notes_capture": ["notes"] },
+      "allOf": [
+        {
+          "if": { "properties": { "is_audio_clip": { "const": false } } },
+          "then": { "required": ["notes", "notes_capture"] },
+          "else": { "not": { "required": ["notes"] } }
+        },
+        {
+          "if": { "required": ["start_time"] },
+          "then": { "required": ["end_time"] },
+          "else": { "required": ["is_midi_clip", "is_playing", "is_recording", "looping", "loop_start", "loop_end", "start_marker", "end_marker", "launch_mode", "launch_quantization"] }
+        }
+      ]
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_id", "pitch", "start_time", "duration", "velocity", "mute", "probability"],
+      "properties": {
+        "note_id": { "$ref": "#/$defs/index", "description": "Live-local identifier, not a durable cross-capture ID." },
+        "pitch": { "type": "integer", "minimum": 0, "maximum": 127 },
+        "start_time": { "$ref": "#/$defs/beats", "description": "Relative to clip start, not the arrangement timeline." },
+        "duration": { "type": "number", "exclusiveMinimum": 0 },
+        "velocity": { "type": "number", "minimum": 0, "maximum": 127 },
+        "mute": { "type": "boolean" },
+        "probability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "velocity_deviation": { "type": "number", "minimum": -127, "maximum": 127 },
+        "release_velocity": { "type": "number", "minimum": 0, "maximum": 127 }
+      }
+    }
+  }
+}
